@@ -1,5 +1,7 @@
+import copy
+
 import networkx as nx
-from networkx import dfs_tree
+from networkx import dfs_tree, NetworkXNoPath
 from networkx.algorithms.shortest_paths.weighted import dijkstra_path
 from networkx.algorithms.traversal import bfs_tree
 
@@ -10,6 +12,8 @@ class Model:
     def __init__(self):
         self._g = nx.Graph()
         self._idAirports = dict()
+        self.percorso = []
+        self.numero_voli = 0
 
     def createGraph(self, n):
         self._g.clear()
@@ -37,11 +41,45 @@ class Model:
         return self._g.nodes()
 
     def aeroportiConnessi(self, p):
-        tree = dfs_tree(self._g, p)
-        return tree.nodes()
+        nodes = self._g.neighbors(p)
+        lista = list()
+        for n in nodes:
+            lista.append((n, self.numero_totale_voli(n)))
+        lista.sort(key=lambda x: x[1], reverse=True)
+        return lista
 
-    def trovaPercorso(self, p, a):
-        path = dijkstra_path(self._g, p, a)
+
+
+    def trovaPercorso(self, p, a, tratte):
+        self.percorso = []
+        self.numero_voli = 0
+        raggiungibili = dfs_tree(self._g, a).nodes
+        self.ricorsione([p], a, tratte, 0, raggiungibili)
+        return self.percorso, self.numero_voli
+
+    def ricorsione(self, parziale, arrivo, tratte, voli, raggiungibili):
+        if parziale[-1] == arrivo:
+            if self.numero_voli < voli:
+                print(voli)
+                self.percorso = copy.deepcopy(parziale)
+                self.numero_voli = voli
+                return
+        elif tratte == 0:
+            return
+        else:
+            u = parziale[-1]
+            for v in self._g.neighbors(u):
+                if v in raggiungibili:
+                    parziale.append(v)
+                    p = self._g[u][v]['weight']
+                    self.ricorsione(parziale, arrivo, (tratte-1), (voli + p), raggiungibili)
+                    parziale.pop()
+
+    def numero_totale_voli(self, n):
+        i = 0
+        for v in self._g.neighbors(n):
+            i += self._g[v][n]['weight']
+        return i
 
     def sizeNodes(self):
         return len(self._g.nodes())
